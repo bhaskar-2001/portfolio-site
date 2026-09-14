@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        ARTIFACT_BUCKET = 'portfolio-pipeline-artifacts-portfolio-pipeline-artifacts-sysopx-4821'
+        ARTIFACT_BUCKET = 'portfolio-pipeline-artifacts-sysopx-4821'
         ASG_NAME        = 'portfolio-asg'
     }
 
