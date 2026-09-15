@@ -1,4 +1,4 @@
-# Portfolio Site — AWS Auto-Scaling Deployment with Jenkins CI/CD
+# Website Hosting — AWS Auto-Scaling Deployment with Jenkins CI/CD
 
 A self-hosted portfolio website deployed on AWS with a fully automated CI/CD pipeline, running behind a load balancer with CPU-based auto scaling.
 Every push to `main` on GitHub triggers Jenkins to sync the latest site files to S3 and roll them out to every running EC2 instance via AWS Systems Manager with zero manual intervention and zero downtime.
