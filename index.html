@@ -17,6 +17,10 @@
 
   * { box-sizing: border-box; }
 
+  html, body {
+    height: 100%;
+  }
+
   body {
     margin: 0;
     min-height: 100vh;
@@ -29,6 +33,7 @@
     animation: gradientShift 15s ease infinite;
     color: #fff;
     padding: 16px;
+    overflow: hidden;
   }
 
   @keyframes gradientShift {
@@ -41,53 +46,74 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 14px;
+    gap: 16px;
     width: 100%;
-    max-width: 520px;
+    max-width: 900px;
+    height: 100%;
+    justify-content: center;
   }
 
   h1 {
     margin: 0;
-    font-size: 2rem;
-    letter-spacing: 2px;
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    letter-spacing: 4px;
+    font-weight: 800;
     background: linear-gradient(90deg, var(--accent), #4fd1ff);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    text-shadow: 0 0 30px rgba(57,255,136,0.3);
+    text-shadow: 0 0 40px rgba(57,255,136,0.35);
   }
 
   .hud {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 48px;
     width: 100%;
-    max-width: 480px;
-    font-size: 1.05rem;
+    font-size: clamp(1rem, 1.6vw, 1.3rem);
     padding: 0 4px;
   }
 
-  .hud span { font-weight: 700; color: var(--accent); }
+  .hud-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: rgba(255,255,255,0.05);
+    padding: 8px 22px;
+    border-radius: 12px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+  }
+
+  .hud-item small {
+    opacity: 0.55;
+    font-size: 0.7em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .hud span { font-weight: 800; color: var(--accent); font-size: 1.3em; }
 
   .board-wrap {
     position: relative;
-    width: 100%;
-    max-width: 480px;
+    width: min(88vmin, 800px);
     aspect-ratio: 1 / 1;
-    border-radius: 16px;
-    padding: 8px;
+    border-radius: 20px;
+    padding: 10px;
     background: linear-gradient(145deg, #1c2b30, #0a1214);
     box-shadow:
-      0 20px 40px rgba(0,0,0,0.5),
-      inset 0 0 0 1px rgba(255,255,255,0.05);
+      0 25px 60px rgba(0,0,0,0.55),
+      inset 0 0 0 1px rgba(255,255,255,0.06);
   }
 
   canvas {
     display: block;
     width: 100%;
     height: 100%;
-    border-radius: 10px;
+    border-radius: 14px;
     background: var(--board-bg);
     touch-action: none;
+    box-shadow: 0 0 0 1px rgba(57,255,136,0.08);
   }
 
   .overlay {
@@ -142,9 +168,9 @@
   /* Mobile D-pad */
   .dpad {
     display: none;
-    grid-template-columns: repeat(3, 56px);
-    grid-template-rows: repeat(3, 56px);
-    gap: 6px;
+    grid-template-columns: repeat(3, 64px);
+    grid-template-rows: repeat(3, 64px);
+    gap: 8px;
     margin-top: 4px;
   }
 
@@ -152,9 +178,13 @@
     background: rgba(255,255,255,0.08);
     color: #fff;
     box-shadow: none;
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     padding: 0;
-    border-radius: 12px;
+    border-radius: 14px;
+  }
+
+  .dpad button.dbtn:active {
+    background: rgba(57,255,136,0.25);
   }
 
   .dbtn.up { grid-column: 2; grid-row: 1; }
@@ -172,8 +202,9 @@
 <div class="container">
   <h1>SNAKE</h1>
   <div class="hud">
-    <div>Score: <span id="score">0</span></div>
-    <div>Best: <span id="best">0</span></div>
+    <div class="hud-item"><small>Score</small><span id="score">0</span></div>
+    <div class="hud-item"><small>Best</small><span id="best">0</span></div>
+    <div class="hud-item"><small>Speed</small><span id="speedLvl">1</span></div>
   </div>
 
   <div class="board-wrap">
@@ -183,6 +214,11 @@
       <h2>🐍 Ready?</h2>
       <p>Use arrow keys / WASD or swipe to move.</p>
       <button id="startBtn">Start Game</button>
+    </div>
+
+    <div class="overlay hidden" id="pausedOverlay">
+      <h2 style="color: var(--accent);">⏸ Paused</h2>
+      <p>Press Space to resume</p>
     </div>
 
     <div class="overlay hidden" id="gameOverOverlay">
@@ -208,8 +244,10 @@
   const ctx = canvas.getContext('2d');
   const scoreEl = document.getElementById('score');
   const bestEl = document.getElementById('best');
+  const speedLvlEl = document.getElementById('speedLvl');
   const startOverlay = document.getElementById('startOverlay');
   const gameOverOverlay = document.getElementById('gameOverOverlay');
+  const pausedOverlay = document.getElementById('pausedOverlay');
   const finalScoreEl = document.getElementById('finalScore');
   const startBtn = document.getElementById('startBtn');
   const restartBtn = document.getElementById('restartBtn');
@@ -243,6 +281,7 @@
     score = 0;
     speed = 130; // ms per move, decreases as score grows
     scoreEl.textContent = score;
+    speedLvlEl.textContent = 1;
     placeFood();
     gameRunning = true;
     paused = false;
@@ -278,7 +317,10 @@
     if (head.x === food.x && head.y === food.y) {
       score += 10;
       scoreEl.textContent = score;
-      if (speed > 60) speed -= 3;
+      if (speed > 60) {
+        speed -= 3;
+        speedLvlEl.textContent = Math.floor((130 - speed) / 10) + 1;
+      }
       placeFood();
     } else {
       snake.pop();
@@ -302,16 +344,21 @@
       ctx.stroke();
     }
 
-    // food (glowing dot)
+    // food (pulsing glowing dot)
     const fx = food.x * cellSize + cellSize / 2;
     const fy = food.y * cellSize + cellSize / 2;
+    const pulse = 0.34 + Math.sin(Date.now() / 200) * 0.06;
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,94,120,0.8)';
+    ctx.shadowBlur = cellSize * 0.6;
     const grad = ctx.createRadialGradient(fx, fy, 1, fx, fy, cellSize);
     grad.addColorStop(0, '#ff8a9a');
     grad.addColorStop(1, '#ff5e78');
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(fx, fy, cellSize * 0.38, 0, Math.PI * 2);
+    ctx.arc(fx, fy, cellSize * pulse, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
 
     // snake
     snake.forEach((seg, idx) => {
@@ -357,8 +404,8 @@
         lastTime = timestamp;
         update();
         if (!gameRunning) return; // ended during update
-        draw();
       }
+      draw();
     }
     requestAnimationFrame(loop);
   }
@@ -377,6 +424,7 @@
   function startGame() {
     startOverlay.classList.add('hidden');
     gameOverOverlay.classList.add('hidden');
+    pausedOverlay.classList.add('hidden');
     resetGame();
     resizeCanvas();
     requestAnimationFrame(loop);
@@ -397,7 +445,10 @@
       case 'ArrowLeft': case 'a': case 'A': setDirection(-1, 0); e.preventDefault(); break;
       case 'ArrowRight': case 'd': case 'D': setDirection(1, 0); e.preventDefault(); break;
       case ' ':
-        if (gameRunning) paused = !paused;
+        if (gameRunning) {
+          paused = !paused;
+          pausedOverlay.classList.toggle('hidden', !paused);
+        }
         e.preventDefault();
         break;
     }
